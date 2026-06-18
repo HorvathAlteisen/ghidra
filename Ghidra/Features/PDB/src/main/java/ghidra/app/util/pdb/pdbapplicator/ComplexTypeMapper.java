@@ -19,7 +19,6 @@ import java.util.*;
 
 import ghidra.app.util.SymbolPath;
 import ghidra.app.util.SymbolPathParser;
-import ghidra.app.util.pdb.PdbNamespaceUtils;
 import ghidra.app.util.bin.format.pdb2.pdbreader.RecordNumber;
 import ghidra.app.util.bin.format.pdb2.pdbreader.TypeProgramInterface;
 import ghidra.app.util.bin.format.pdb2.pdbreader.type.*;
@@ -123,11 +122,19 @@ public class ComplexTypeMapper {
 	private void mapComplexTypesByPath(Map<SymbolPath, Deque<NumFwdRef>> typeFIFOsByPath,
 			int indexNumber, AbstractComplexMsType complexType) {
 
-		// A blank name (emitted by older MSVC toolchains for anonymous types) would cause
-		// SymbolPathParser.parse to throw and abort analysis; substitute the unnamed-tag
-		// placeholder so it parses and is later made unique by record number.
-		SymbolPath symbolPath = new SymbolPath(
-			SymbolPathParser.parse(PdbNamespaceUtils.nameOrUnnamedTag(complexType.getName())));
+		// Anonymous types (blank/null name, e.g. from older MSVC toolchains such as VC6/VC98)
+		// cannot be paired by name: a forward reference must name the type it refers to, so no
+		// forward reference ever targets an anonymous type. Bucketing them all under one
+		// placeholder key would FIFO-pair unrelated anonymous types as each other's
+		// forward-ref/definition, collapsing them onto a single record number -- which yields
+		// duplicate names downstream and false self-referential structures
+		// ("Data type X has X within it"). Skip them here; each then maps to itself (see
+		// getMapped) and is given a unique name downstream via PdbNamespaceUtils.fixUnnamed.
+		String name = complexType.getName();
+		if (name == null || name.isBlank()) {
+			return;
+		}
+		SymbolPath symbolPath = new SymbolPath(SymbolPathParser.parse(name));
 		boolean isFwdRef = complexType.getMsProperty().isForwardReference();
 		RecordNumber recordNumber = complexType.getRecordNumber();
 
