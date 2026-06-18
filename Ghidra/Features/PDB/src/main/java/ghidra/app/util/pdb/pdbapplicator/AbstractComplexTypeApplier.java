@@ -120,7 +120,9 @@ public abstract class AbstractComplexTypeApplier extends MsDataTypeApplier {
 		// mangled symbol is truncated... perhaps we pass in a flag indicating to continue
 		// processing with the assumption that it is truncated?
 
-		boolean truncated = name.length() == 4096; // works unless real length was 4096
+		// name may be null for anonymous types emitted by older MSVC toolchains (e.g. VC6/VC98);
+		// guard the length check so it is treated as not-truncated rather than throwing.
+		boolean truncated = name != null && name.length() == 4096; // works unless real length was 4096
 		if (mangledName != null) {
 			symbolPath = getSymbolPathFromMangledTypeName(mangledName, truncated ? null : name);
 		}
