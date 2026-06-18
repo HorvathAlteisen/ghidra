@@ -19,6 +19,7 @@ import java.util.*;
 
 import ghidra.app.util.SymbolPath;
 import ghidra.app.util.SymbolPathParser;
+import ghidra.app.util.pdb.PdbNamespaceUtils;
 import ghidra.app.util.bin.format.pdb2.pdbreader.RecordNumber;
 import ghidra.app.util.bin.format.pdb2.pdbreader.TypeProgramInterface;
 import ghidra.app.util.bin.format.pdb2.pdbreader.type.*;
@@ -122,7 +123,11 @@ public class ComplexTypeMapper {
 	private void mapComplexTypesByPath(Map<SymbolPath, Deque<NumFwdRef>> typeFIFOsByPath,
 			int indexNumber, AbstractComplexMsType complexType) {
 
-		SymbolPath symbolPath = new SymbolPath(SymbolPathParser.parse(complexType.getName()));
+		// A blank name (emitted by older MSVC toolchains for anonymous types) would cause
+		// SymbolPathParser.parse to throw and abort analysis; substitute the unnamed-tag
+		// placeholder so it parses and is later made unique by record number.
+		SymbolPath symbolPath = new SymbolPath(
+			SymbolPathParser.parse(PdbNamespaceUtils.nameOrUnnamedTag(complexType.getName())));
 		boolean isFwdRef = complexType.getMsProperty().isForwardReference();
 		RecordNumber recordNumber = complexType.getRecordNumber();
 

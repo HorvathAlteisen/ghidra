@@ -125,9 +125,12 @@ public abstract class AbstractComplexTypeApplier extends MsDataTypeApplier {
 			symbolPath = getSymbolPathFromMangledTypeName(mangledName, truncated ? null : name);
 		}
 		if (symbolPath == null) {
+			// A blank name (emitted by older MSVC toolchains for anonymous types) would cause
+			// SymbolPathParser.parse to throw; substitute the unnamed-tag placeholder so it parses
+			// and is later made unique by record number in PdbNamespaceUtils.fixUnnamed.
 			symbolPath =
 				MDMangUtils.standarizeSymbolPathUnderscores(
-					new SymbolPath(SymbolPathParser.parse(name)));
+					new SymbolPath(SymbolPathParser.parse(PdbNamespaceUtils.nameOrUnnamedTag(name))));
 			// If name was truncated at 4096 characters, then we likely do not have a complete
 			// symbol.  In a rare case, we had a blank "name" because the truncation happened
 			// right after a namespace delimiter.  Whether blank or not, we are appending

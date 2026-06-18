@@ -24,6 +24,31 @@ import ghidra.program.model.symbol.SymbolUtilities;
 public class PdbNamespaceUtils {
 
 	/**
+	 * Placeholder substituted for a complex type (composite or enum) whose name is blank.
+	 * <P>
+	 * Newer MSVC toolchains emit a marker such as {@code <unnamed-tag>} for anonymous types, but
+	 * some older ones (e.g. VC6/VC98) emit a genuinely empty name.  A blank name causes
+	 * {@link ghidra.app.util.SymbolPathParser#parse(String)} to throw
+	 * {@link IllegalArgumentException} ("Pathname cannot be empty!"), which aborts PDB analysis.
+	 * Substituting this placeholder before parsing both avoids that exception and routes the type
+	 * through {@link #fixUnnamed(String, int)}, where it is given a record-number suffix so each
+	 * anonymous type becomes a distinct, named data type (e.g. {@code <unnamed-tag_0000A3F1>})
+	 * rather than being lost or collapsed together.
+	 */
+	public static final String UNNAMED_TAG = "<unnamed-tag>";
+
+	/**
+	 * Returns {@code name}, or {@link #UNNAMED_TAG} if {@code name} is {@code null} or blank.
+	 * Use this to guard {@link ghidra.app.util.SymbolPathParser#parse(String)} against blank
+	 * complex-type names (see {@link #UNNAMED_TAG} for details).
+	 * @param name the complex type name, possibly blank
+	 * @return a non-blank name suitable for symbol-path parsing
+	 */
+	public static String nameOrUnnamedTag(String name) {
+		return (name == null || name.isBlank()) ? UNNAMED_TAG : name;
+	}
+
+	/**
 	 * Fixes {@link SymbolPath} name, eliminating invalid characters and making the terminal
 	 *  name of the namespace unique by the index number when necessary.  For example,
 	 *  anonymous and unnamed components such as {@code <unnamed-tag>} and {@code <unnamed-type>}
