@@ -122,7 +122,19 @@ public class ComplexTypeMapper {
 	private void mapComplexTypesByPath(Map<SymbolPath, Deque<NumFwdRef>> typeFIFOsByPath,
 			int indexNumber, AbstractComplexMsType complexType) {
 
-		SymbolPath symbolPath = new SymbolPath(SymbolPathParser.parse(complexType.getName()));
+		// Anonymous types (blank/null name, e.g. from older MSVC toolchains such as VC6/VC98)
+		// cannot be paired by name: a forward reference must name the type it refers to, so no
+		// forward reference ever targets an anonymous type. Bucketing them all under one
+		// placeholder key would FIFO-pair unrelated anonymous types as each other's
+		// forward-ref/definition, collapsing them onto a single record number -- which yields
+		// duplicate names downstream and false self-referential structures
+		// ("Data type X has X within it"). Skip them here; each then maps to itself (see
+		// getMapped) and is given a unique name downstream via PdbNamespaceUtils.fixUnnamed.
+		String name = complexType.getName();
+		if (name == null || name.isBlank()) {
+			return;
+		}
+		SymbolPath symbolPath = new SymbolPath(SymbolPathParser.parse(name));
 		boolean isFwdRef = complexType.getMsProperty().isForwardReference();
 		RecordNumber recordNumber = complexType.getRecordNumber();
 
